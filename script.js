@@ -164,7 +164,7 @@ const VERIFICACAO_WEBHOOK_URL = 'https://hook.us2.make.com/noiou4qy5rshoy7scrafe
 const ESQUECI_SENHA_WEBHOOK_URL = 'https://hook.us2.make.com/0hkjdys97cuy5higrj7d2v79r8bokosr';
 const REDEFINIR_SENHA_WEBHOOK_URL = 'https://hook.us2.make.com/qn76utbyrx6niz7dv67exap2ukikouv3';
 
-const PAINEL_DATA_WEBHOOK_URL = 'https://hook.us2.make.com/k3tjhc8womclsea6ax0hke3qh6bwtr91';
+
 const CRIAR_PEDIDO_WEBHOOK_URL = 'https://hook.us2.make.com/548en3dbsynv4c2e446jvcwrizl7trut';
 const PAGAR_COM_SALDO_URL = 'https://hook.us2.make.com/3dtcbbrxqh1s2o8cdcjxj37iyq4bd736';
 const GERAR_COBRANCA_URL = 'https://hook.us2.make.com/7ub1y8w9v23rkyd6tumh84p5l21knquv';
@@ -494,11 +494,11 @@ async function atualizarDadosPainel() {
     }
 
     try {
-        const response = await fetch(PAINEL_DATA_WEBHOOK_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "x-make-apikey": FRONTEND_API_KEY },
-            body: JSON.stringify({ token: sessionToken })
-        });
+        const response = await fetch('/api/getPanelData', {
+    method: "POST",
+    headers: { "Content-Type": "application/json" }, // Não precisa mais da chave x-make-apikey
+    body: JSON.stringify({ token: sessionToken })
+});
         
         // CORREÇÃO: Tentar fazer parse do JSON e capturar erro específico
         let data;
@@ -1051,3 +1051,4 @@ function inicializarPainel() {
 
 // Chamar a função de inicialização quando o DOM estiver completamente carregado
 document.addEventListener("DOMContentLoaded", inicializarPainel);
+
