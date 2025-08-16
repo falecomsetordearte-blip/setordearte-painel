@@ -387,7 +387,6 @@ function aplicarFiltros() {
 }
 
 function inicializarPainel() {
-    // Verificação de sessão
     const sessionToken = localStorage.getItem("sessionToken");
     const userName = localStorage.getItem("userName");
     if (!sessionToken || !userName) {
@@ -395,166 +394,20 @@ function inicializarPainel() {
         window.location.href = "login.html";
         return;
     }
-
-    // Pega todos os elementos interativos do painel
-    const userGreeting = document.getElementById("user-greeting");
-    const logoutButton = document.getElementById("logout-button");
-    const searchInput = document.getElementById("search-input");
-    const statusFilter = document.getElementById("status-filter");
-    const pedidosListBody = document.getElementById("pedidos-list-body");
-
-    // Elementos do Modal de Novo Pedido
-    const modalNovoPedido = document.getElementById("modal-novo-pedido");
-    const btnOpenModalNovoPedido = document.querySelector(".btn-novo-pedido");
-    const btnCloseModalNovoPedido = modalNovoPedido.querySelector(".close-modal");
-    const formNovoPedido = document.getElementById("novo-pedido-form");
-
-    // Elementos do Modal de Adicionar Créditos
-    const modalCreditos = document.getElementById("modal-adquirir-creditos");
-    const btnOpenModalCreditos = document.querySelector(".btn-add-credito");
-    const btnCloseModalCreditos = modalCreditos.querySelector(".close-modal");
-    const formCreditos = document.getElementById("adquirir-creditos-form");
-
-    // Configura listeners estáticos
-    userGreeting.textContent = `Olá, ${userName}!`;
-    logoutButton.addEventListener("click", () => {
+    document.getElementById("user-greeting").textContent = `Olá, ${userName}!`;
+    document.getElementById("logout-button").addEventListener("click", () => {
         localStorage.clear();
         window.location.href = "login.html";
     });
-
+    const searchInput = document.getElementById("search-input");
     if (searchInput) {
         searchInput.addEventListener("input", aplicarFiltros);
     }
-    if (statusFilter) {
-        statusFilter.addEventListener("change", aplicarFiltros);
-    }
-
-    // --- Configura os listeners dos MODAIS ---
-
-    // Modal de Novo Pedido
-    btnOpenModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.add("active"));
-    btnCloseModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.remove("active"));
-    
-    formNovoPedido.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const submitButton = formNovoPedido.querySelector("button[type='submit']");
-        const arquivosLink = document.getElementById("pedido-arquivos-link").value.trim();
-        
-        if (arquivosLink && !isValidURL(arquivosLink)) {
-            showFeedback("pedido-form-error", "Por favor, insira um link válido.", true);
-            return;
-        }
-
-        submitButton.disabled = true;
-        submitButton.textContent = "Criando...";
-        hideFeedback("pedido-form-error");
-
-        const pedidoData = {
-            token: sessionToken,
-            titulo: document.getElementById("pedido-titulo").value,
-            cliente_nome: document.getElementById("cliente-final-nome").value,
-            cliente_wpp: document.getElementById("cliente-final-wpp").value,
-            briefing: document.getElementById("pedido-briefing").value,
-            valor: document.getElementById("pedido-valor").value,
-            formato: document.getElementById("pedido-formato").value,
-            arquivos_link: arquivosLink
-        };
-
-        try {
-            const response = await fetch(CRIAR_PEDIDO_WEBHOOK_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(pedidoData)
-            });
-            const data = await response.json();
-            if (!response.ok) { throw new Error(data.message || "Erro ao criar pedido."); }
-
-            alert("Pedido criado! Ele aparecerá na sua lista como 'Aguardando Pagamento'.");
-            modalNovoPedido.classList.remove("active");
-            formNovoPedido.reset();
-            await atualizarDadosPainel();
-
-        } catch (error) {
-            showFeedback("pedido-form-error", error.message, true);
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = "Criar Pedido";
-        }
-    });
-
-    // Modal de Adicionar Créditos
-    btnOpenModalCreditos.addEventListener("click", () => modalCreditos.classList.add("active"));
-    btnCloseModalCreditos.addEventListener("click", () => modalCreditos.classList.remove("active"));
-    
-    formCreditos.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const submitButton = formCreditos.querySelector("button[type='submit']");
-        const valorAdicionado = document.getElementById("creditos-valor").value;
-
-        hideFeedback("creditos-form-error");
-        submitButton.disabled = true;
-        submitButton.textContent = "Gerando...";
-
-        try {
-            const response = await fetch(ADICIONAR_CREDITOS_URL, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: sessionToken, valor: valorAdicionado })
-            });
-            const data = await response.json();
-            if (!response.ok) { throw new Error(data.message || "Não foi possível gerar a cobrança."); }
-
-            if (data.paymentLink) window.open(data.paymentLink, "_blank");
-            
-            modalCreditos.classList.remove("active");
-            formCreditos.reset();
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            await atualizarDadosPainel();
-
-        } catch (error) {
-            showFeedback("creditos-form-error", error.message, true);
-        } finally {
-            submitButton.disabled = false;
-            submitButton.textContent = "Pagar";
-        }
-    });
-
-    // Configura o listener para a lista de pedidos (Ações)
-    pedidosListBody.addEventListener("click", async (event) => {
-        const target = event.target;
-        const dropdown = target.closest(".dropdown-pagamento");
-
-        if (target.classList.contains("btn-pagar")) {
-            event.stopPropagation();
-            document.querySelectorAll(".dropdown-pagamento.active").forEach(d => {
-                if (d !== dropdown) d.classList.remove("active");
-            });
-            dropdown.classList.toggle("active");
-            return;
-        }
-
-        const dealId = target.dataset.dealId;
-        if (!dealId) return;
-
-        if (target.classList.contains("btn-pagar-saldo")) {
-            const valor = target.dataset.valor;
-            if (confirm(`Confirma o pagamento de R$ ${valor} usando seu saldo?`)) {
-                // Lógica de pagamento com saldo aqui
-            }
-        }
-
-        if (target.classList.contains("btn-gerar-cobranca")) {
-            // Lógica de gerar cobrança PIX aqui
-        }
-    });
-
-    // Fecha o dropdown se clicar em qualquer outro lugar da página
-    window.addEventListener("click", (e) => {
-        if (!e.target.matches(".btn-pagar")) {
-            document.querySelectorAll(".dropdown-pagamento.active").forEach(d => d.classList.remove("active"));
-        }
-    });
-
-    // Busca os dados dinâmicos para preencher a tabela
     atualizarDadosPainel();
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (document.querySelector(".main-painel")) {
+        inicializarPainel();
+    }
+});
