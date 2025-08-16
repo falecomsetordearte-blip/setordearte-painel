@@ -58,12 +58,12 @@ module.exports = async (req, res) => {
                 NAME: nomeResponsavel,
                 EMAIL: [{ VALUE: email, VALUE_TYPE: 'WORK' }],
                 COMPANY_ID: companyId,
-                'UF_CRM_PASSWORD_HASH': hashedPassword,
-                'UF_CRM_SESSION_TOKEN': sessionToken,
-                'UF_CRM_VERIFICADO': 'Não',
-                'UF_CRM_ASSINATURA_ATIVA': 'Yes',
-                'UF_CRM_TRIAL_END_DATE': trialEndDate,
-                'UF_CRM_TRIAL': 'YES'
+                'UF_CRM_1751824202': hashedPassword,
+                'UF_CRM_1751824225': sessionToken,
+                'UF_CRM_1751829758': 'Não',
+                'UF_CRM_1755112398691': 'Yes',
+                'UF_CRM_1755120026423': trialEndDate,
+                'UF_CRM_1755120362390': 'YES'
             }
         });
         
