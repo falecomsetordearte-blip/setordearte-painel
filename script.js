@@ -395,6 +395,59 @@ function inicializarPainel() {
         return;
     }
     document.getElementById("user-greeting").textContent = `Olá, ${userName}!`;
+        // --- LÓGICA PARA O MODAL DE NOVO PEDIDO ---
+    const modalNovoPedido = document.getElementById("modal-novo-pedido");
+    const btnOpenModalNovoPedido = document.querySelector(".btn-novo-pedido");
+    const btnCloseModalNovoPedido = modalNovoPedido.querySelector(".close-modal");
+    const formNovoPedido = document.getElementById("novo-pedido-form");
+
+    // Listener para ABRIR o modal
+    btnOpenModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.add("active"));
+    
+    // Listener para FECHAR o modal (apenas no botão 'X')
+    btnCloseModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.remove("active"));
+
+    // Listener para o ENVIO do formulário
+    formNovoPedido.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitButton = formNovoPedido.querySelector("button[type='submit']");
+        submitButton.disabled = true;
+        submitButton.textContent = "Criando...";
+        hideFeedback("pedido-form-error");
+
+        const pedidoData = {
+            token: sessionToken,
+            titulo: document.getElementById("pedido-titulo").value,
+            cliente_nome: document.getElementById("cliente-final-nome").value,
+            cliente_wpp: document.getElementById("cliente-final-wpp").value,
+            briefing: document.getElementById("pedido-briefing").value,
+            valor: document.getElementById("pedido-valor").value,
+            formato: document.getElementById("pedido-formato").value,
+            // O campo de link de arquivos não está no seu HTML, mas se estivesse, seria adicionado aqui.
+        };
+
+        try {
+            // AINDA USA O WEBHOOK ANTIGO DO MAKE.COM
+            const response = await fetch(CRIAR_PEDIDO_WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(pedidoData)
+            });
+            const data = await response.json();
+            if (!response.ok) { throw new Error(data.message || "Erro ao criar pedido."); }
+
+            alert("Pedido criado! Ele aparecerá na sua lista como 'Aguardando Pagamento'.");
+            modalNovoPedido.classList.remove("active");
+            formNovoPedido.reset();
+            await atualizarDadosPainel(); // Recarrega os dados do painel
+
+        } catch (error) {
+            showFeedback("pedido-form-error", error.message, true);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "Criar Pedido";
+        }
+    });
     document.getElementById("logout-button").addEventListener("click", () => {
         localStorage.clear();
         window.location.href = "login.html";
@@ -411,3 +464,4 @@ document.addEventListener("DOMContentLoaded", () => {
         inicializarPainel();
     }
 });
+
