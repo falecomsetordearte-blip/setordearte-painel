@@ -15,6 +15,9 @@ module.exports = async (req, res) => {
     }
 
     const { nomeEmpresa, cnpj, telefoneEmpresa, nomeResponsavel, email, senha } = req.body;
+    if (!nomeEmpresa || !cnpj || !telefoneEmpresa || !nomeResponsavel || !email || !senha) {
+    return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
+        
     let companyId = null;
     let contactId = null;
 
