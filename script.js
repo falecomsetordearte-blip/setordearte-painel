@@ -72,9 +72,6 @@ function exibirAlertaSessaoSubstituida() {
     });
 }
 
-
-const ESQUECI_SENHA_WEBHOOK_URL = 'https://hook.us2.make.com/0hkjdys97cuy5higrj7d2v79r8bokosr';
-const REDEFINIR_SENHA_WEBHOOK_URL = 'https://hook.us2.make.com/qn76utbyrx6niz7dv67exap2ukikouv3';
 const CRIAR_PEDIDO_WEBHOOK_URL = 'https://hook.us2.make.com/548en3dbsynv4c2e446jvcwrizl7trut';
 const PAGAR_COM_SALDO_URL = 'https://hook.us2.make.com/3dtcbbrxqh1s2o8cdcjxj37iyq4bd736';
 const GERAR_COBRANCA_URL = 'https://hook.us2.make.com/7ub1y8w9v23rkyd6tumh84p5l21knquv';
@@ -160,9 +157,7 @@ if (loginForm) {
         const submitButton = loginForm.querySelector('button[type="submit"]');
         submitButton.disabled = true;
         submitButton.textContent = 'Entrando...';
-
         try {
-            // Chamando o novo backend da Vercel
             const response = await fetch('/api/loginUser', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -171,17 +166,13 @@ if (loginForm) {
                     senha: document.getElementById('senha').value
                 })
             });
-
             const data = await response.json();
             if (!response.ok) {
                 throw new Error(data.message || 'Ocorreu um erro desconhecido.');
             }
-
-            // Salva o token e o nome do usuário no localStorage
             localStorage.setItem('sessionToken', data.token);
             localStorage.setItem('userName', data.userName);
             window.location.href = 'painel.html';
-
         } catch (error) {
             showFeedback('form-error-feedback', error.message, true);
             submitButton.disabled = false;
@@ -199,15 +190,16 @@ if (esqueciSenhaForm) {
         btn.disabled = true;
         btn.textContent = 'Enviando...';
         try {
-            const response = await fetch(ESQUECI_SENHA_WEBHOOK_URL, {
+            const response = await fetch('/api/forgotPassword', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: document.getElementById('email').value })
             });
             const data = await response.json();
-            formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo.svg" alt="Logo Setor de Arte"><h1>Link Enviado!</h1><p>${data.message || 'Se um e-mail correspondente for encontrado, um link de recuperação será enviado.'}</p></div>`;
+            if (!response.ok) { throw new Error(data.message); }
+            formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte"><h1>Link Enviado!</h1><p>${data.message || 'Se um e-mail correspondente for encontrado em nosso sistema, um link para redefinição de senha será enviado.'}</p></div>`;
         } catch (error) {
-            formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte"><h1>Ocorreu um Erro</h1><p>Não foi possível processar a solicitação. Por favor, tente novamente mais tarde.</p></div>`;
+            formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte"><h1>Ocorreu um Erro</h1><p>${error.message || 'Não foi possível processar a solicitação. Por favor, tente novamente mais tarde.'}</p></div>`;
         }
     });
 }
@@ -237,7 +229,7 @@ if (redefinirSenhaForm) {
             return;
         }
         try {
-            const response = await fetch(REDEFINIR_SENHA_WEBHOOK_URL, {
+            const response = await fetch('/api/resetPassword', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ token: token, novaSenha: novaSenha })
@@ -253,15 +245,10 @@ if (redefinirSenhaForm) {
     });
 }
 
-// ===================================================================
-//  LÓGICA DE VERIFICAÇÃO E LOGIN (ATUALIZADA)
-// ===================================================================
-
 if (window.location.pathname.endsWith('/verificacao.html')) {
     const feedbackText = document.getElementById('feedback-text');
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-
     (async () => {
         if (!token) {
             feedbackText.textContent = 'Link de verificação inválido ou incompleto.';
@@ -298,12 +285,7 @@ if (window.location.pathname.endsWith('/login.html')) {
     });
 }
 
-// ===================================================================
-//  LÓGICA DO PAINEL DO CLIENTE (ainda usa Vercel para carregar)
-// ===================================================================
-
 let todosPedidos = [];
-let notificacoesMap = {};
 let paginaAtual = 1;
 const itensPorPagina = 20;
 let pedidosFiltrados = [];
@@ -312,19 +294,18 @@ async function atualizarDadosPainel() {
     const sessionToken = localStorage.getItem("sessionToken");
     const pedidosListBody = document.getElementById("pedidos-list-body");
     const saldoValorEl = document.getElementById("saldo-valor");
-    
     if (!sessionToken) {
         localStorage.clear();
         window.location.href = "login.html";
         return;
     }
+    pedidosListBody.innerHTML = `<div class="loading-pedidos"><div class="spinner"></div><span>Carregando seus pedidos...</span></div>`;
     try {
         const response = await fetch('/api/getPanelData', {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ token: sessionToken })
         });
-        
         let data;
         try {
             data = await response.json();
@@ -335,122 +316,153 @@ async function atualizarDadosPainel() {
             }
             throw jsonError;
         }
-        
-        if (!response.ok) { 
-            if (await handleAuthError(response)) { return; } 
-            throw new Error(data.message || "Erro ao buscar dados."); 
+        if (!response.ok) {
+            if (await handleAuthError(response)) { return; }
+            throw new Error(data.message || "Erro ao buscar dados.");
         }
-
-        if (data.statusConta && data.statusConta !== 'Ativo') {
+        if (data.statusConta && data.statusConta !== '1') {
             document.body.innerHTML = `<div class="auth-page"><div class="auth-container" style="text-align: center;"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte" style="height: 80px; margin-bottom: 20px;"><h1>Acesso Suspenso</h1><p style="color: var(--cinza-texto); line-height: 1.6;">Sua assinatura está com uma pendência de pagamento...</p><a href="login.html" style="display: inline-block; margin-top: 30px; color: var(--azul-principal); font-weight: 600;">Sair</a></div></div>`;
             localStorage.clear();
             return;
         }
-
         saldoValorEl.textContent = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(data.saldo || 0);
         todosPedidos = data.pedidos || [];
-        
-        paginaAtual = 1; 
+        paginaAtual = 1;
         aplicarFiltros();
     } catch (error) {
-        if (detectarErroSessaoSubstituida(error)) {
-            exibirAlertaSessaoSubstituida();
-            return;
-        }
+        const errorMessage = `Falha ao carregar dados do painel. Causa: ${error.message}`;
+        console.error(errorMessage);
         if (pedidosListBody) {
-             pedidosListBody.innerHTML = `<div class="loading-pedidos" style="color: var(--erro);">${error.message}</div>`;
+             pedidosListBody.innerHTML = `<div class="loading-pedidos" style="color: var(--erro);">${errorMessage}</div>`;
         }
     }
 }
 
-function renderizarPedidos(pedidos) {
+function renderizarPedidos() {
     const pedidosListBody = document.getElementById("pedidos-list-body");
-    const paginationContainer = document.getElementById("pagination-container");
-
     pedidosListBody.innerHTML = "";
-    pedidosFiltrados = pedidos;
-
-    if (pedidos && pedidos.length > 0) {
+    if (pedidosFiltrados && pedidosFiltrados.length > 0) {
         const indiceInicio = (paginaAtual - 1) * itensPorPagina;
         const indiceFim = indiceInicio + itensPorPagina;
-        const pedidosPagina = pedidos.slice(indiceInicio, indiceFim);
-
+        const pedidosPagina = pedidosFiltrados.slice(indiceInicio, indiceFim);
         let pedidosHtml = "";
         pedidosPagina.forEach(pedido => {
             let statusInfo = { texto: "Desconhecido", classe: "" };
-            let acaoHtml = `<a href="pedido.html?id=${pedido.ID}" class="btn-ver-pedido">Ver Detalhes</a>`;
+            let notificacaoHtml = '';
+            if (pedido.notificacao === true) {
+                notificacaoHtml = '<span class="notificacao-badge"><i class="fa-solid fa-circle"></i></span>';
+            }
+            let acaoHtml = `<a href="pedido.html?id=${pedido.ID}" class="btn-ver-pedido">Ver Detalhes${notificacaoHtml}</a>`;
             const stageId = pedido.STAGE_ID || "";
-
             if (stageId.includes("NEW")) {
                 statusInfo = { texto: "Aguardando Pagamento", classe: "status-pagamento" };
-                acaoHtml = `<div class="dropdown-pagamento"><button class="btn-pagar" data-deal-id="${pedido.ID}">Pagar Agora</button><div class="dropdown-content"><button class="btn-pagar-saldo" data-deal-id="${pedido.ID}" data-valor="${(parseFloat(pedido.OPPORTUNITY) || 0).toFixed(2)}">Usar Saldo</button><button class="btn-gerar-cobranca" data-deal-id="${pedido.ID}">PIX</button></div></div>`;
+                acaoHtml = `<div class="dropdown-pagamento"><button class="btn-pagar" data-deal-id="${pedido.ID}">Pagar Agora</button><div class="dropdown-content"><button class="btn-pagar-saldo" data-deal-id="${pedido.ID}">Usar Saldo</button><button class="btn-gerar-cobranca" data-deal-id="${pedido.ID}">PIX</button></div></div>`;
             } else if (stageId.includes("LOSE")) {
                 statusInfo = { texto: "Cancelado", classe: "status-cancelado" };
             } else {
                 statusInfo = { texto: "Em Andamento", classe: "status-andamento" };
             }
-
             const valorFormatado = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(parseFloat(pedido.OPPORTUNITY) || 0);
             pedidosHtml += `<div class="pedido-item"><div class="col-id"><strong>#${pedido.ID}</strong></div><div class="col-titulo">${pedido.TITLE}</div><div class="col-status"><span class="status-badge ${statusInfo.classe}">${statusInfo.texto}</span></div><div class="col-valor">${valorFormatado}</div><div class="col-acoes">${acaoHtml}</div></div>`;
         });
-
         pedidosListBody.innerHTML = pedidosHtml;
-        
-        if (pedidos.length > itensPorPagina) {
-            paginationContainer.classList.remove("hidden");
-            atualizarControlesPaginacao(pedidos.length);
-        } else {
-            paginationContainer.classList.add("hidden");
-        }
     } else {
         pedidosListBody.innerHTML = `<div class="loading-pedidos" style="padding: 50px 20px;">Nenhum pedido encontrado.</div>`;
-        paginationContainer.classList.add("hidden");
     }
 }
 
 function aplicarFiltros() {
-    // Lógica de filtros...
-}
-
-function irParaPagina(pagina) {
-    // Lógica de paginação...
-}
-
-function atualizarControlesPaginacao(totalItens) {
-    // Lógica de paginação...
+    const searchInput = document.getElementById("search-input");
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    if (searchTerm) {
+        pedidosFiltrados = todosPedidos.filter(pedido =>
+            (pedido.TITLE || "").toLowerCase().includes(searchTerm) ||
+            (pedido.ID || "").toString().includes(searchTerm)
+        );
+    } else {
+        pedidosFiltrados = todosPedidos;
+    }
+    paginaAtual = 1;
+    renderizarPedidos();
 }
 
 function inicializarPainel() {
-    const painelContent = document.body.querySelector(".main-painel");
-    if (!painelContent) return;
-
     const sessionToken = localStorage.getItem("sessionToken");
     const userName = localStorage.getItem("userName");
-
-    if (!sessionToken) {
+    if (!sessionToken || !userName) {
         localStorage.clear();
         window.location.href = "login.html";
         return;
     }
+    document.getElementById("user-greeting").textContent = `Olá, ${userName}!`;
+        // --- LÓGICA PARA O MODAL DE NOVO PEDIDO ---
+    const modalNovoPedido = document.getElementById("modal-novo-pedido");
+    const btnOpenModalNovoPedido = document.querySelector(".btn-novo-pedido");
+    const btnCloseModalNovoPedido = modalNovoPedido.querySelector(".close-modal");
+    const formNovoPedido = document.getElementById("novo-pedido-form");
 
-    const userGreeting = document.getElementById("user-greeting");
-    userGreeting.textContent = `Olá, ${userName}!`;
+    // Listener para ABRIR o modal
+    btnOpenModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.add("active"));
     
-    // Outros event listeners do painel...
+    // Listener para FECHAR o modal (apenas no botão 'X')
+    btnCloseModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.remove("active"));
 
-    if (document.body.contains(document.getElementById("pedidos-list-body"))) {
-        atualizarDadosPainel();
+    // Listener para o ENVIO do formulário
+    formNovoPedido.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const submitButton = formNovoPedido.querySelector("button[type='submit']");
+        submitButton.disabled = true;
+        submitButton.textContent = "Criando...";
+        hideFeedback("pedido-form-error");
+
+        const pedidoData = {
+            token: sessionToken,
+            titulo: document.getElementById("pedido-titulo").value,
+            cliente_nome: document.getElementById("cliente-final-nome").value,
+            cliente_wpp: document.getElementById("cliente-final-wpp").value,
+            briefing: document.getElementById("pedido-briefing").value,
+            valor: document.getElementById("pedido-valor").value,
+            formato: document.getElementById("pedido-formato").value,
+            // O campo de link de arquivos não está no seu HTML, mas se estivesse, seria adicionado aqui.
+        };
+
+        try {
+            // AINDA USA O WEBHOOK ANTIGO DO MAKE.COM
+            const response = await fetch(CRIAR_PEDIDO_WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(pedidoData)
+            });
+            const data = await response.json();
+            if (!response.ok) { throw new Error(data.message || "Erro ao criar pedido."); }
+
+            alert("Pedido criado! Ele aparecerá na sua lista como 'Aguardando Pagamento'.");
+            modalNovoPedido.classList.remove("active");
+            formNovoPedido.reset();
+            await atualizarDadosPainel(); // Recarrega os dados do painel
+
+        } catch (error) {
+            showFeedback("pedido-form-error", error.message, true);
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = "Criar Pedido";
+        }
+    });
+    document.getElementById("logout-button").addEventListener("click", () => {
+        localStorage.clear();
+        window.location.href = "login.html";
+    });
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) {
+        searchInput.addEventListener("input", aplicarFiltros);
     }
+    atualizarDadosPainel();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    // Verifica em qual página estamos para chamar a inicialização correta
-    if (document.getElementById('cadastro-form')) {
-        // Já tratado pelo listener direto
-    } else if (document.getElementById('login-form')) {
-        // Já tratado pelo listener direto
-    } else if (document.getElementById('pedidos-list-body')) {
+    if (document.querySelector(".main-painel")) {
         inicializarPainel();
     }
 });
+
 
