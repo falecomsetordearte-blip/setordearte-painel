@@ -16,11 +16,15 @@ module.exports = async (req, res) => {
             return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
         }
 
-        // ETAPA 1: Buscar o usuário pelo e-mail de login no campo personalizado
+        // --- INÍCIO DA CORREÇÃO ---
+        // ETAPA 1: Buscar o usuário pelo E-MAIL DE ACESSO no campo personalizado
         const searchUserResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.list.json`, {
-            filter: { 'UF_CRM_174535288724': email }, // Busca pelo seu campo de "E-mail de Acesso"
-            select: ['ID', 'NAME', 'UF_CRM_1751824202', 'UF_CRM_1751824225'] // Pega ID, Nome, Hash da Senha e o campo dos Tokens
+            filter: { 
+                'UF_CRM_174535288724': email // Busca pelo seu campo "E-mail de Acesso"
+            },
+            select: ['ID', 'NAME', 'UF_CRM_1751824202', 'UF_CRM_1751824225'] // Pega ID, Nome, Hash da Senha e o campo de Tokens
         });
+        // --- FIM DA CORREÇÃO ---
 
         const user = searchUserResponse.data.result[0];
 
@@ -40,25 +44,20 @@ module.exports = async (req, res) => {
             return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
         }
 
-        // ETAPA 3: SENHA CORRETA! Gerar novo token e adicionar à lista existente
+        // ETAPA 3: Gerar novo token e adicionar à lista
         const newSessionToken = randomBytes(32).toString('hex');
-        
-        // Pega os tokens existentes, ou começa uma string vazia se o campo for nulo
         const existingTokens = user.UF_CRM_1751824225 || '';
-
-        // Adiciona o novo token à string, separado por uma vírgula.
-        // O `trim()` remove espaços em branco extras para garantir que não haja vírgulas duplas.
         const updatedTokens = existingTokens ? `${existingTokens.trim()},${newSessionToken}` : newSessionToken;
 
-        // Atualiza o contato no Bitrix24 com a nova lista de tokens
+        // Atualiza o contato com o novo token
         await axios.post(`${BITRIX24_API_URL}crm.contact.update.json`, {
             id: user.ID,
             fields: {
-                'UF_CRM_1751824225': updatedTokens // Salva a string atualizada de tokens
+                'UF_CRM_1751824225': updatedTokens
             }
         });
 
-        // ETAPA FINAL: Enviar o novo token e o nome do usuário para o front-end
+        // ETAPA FINAL: Enviar o novo token
         return res.status(200).json({ 
             token: newSessionToken, 
             userName: user.NAME 
