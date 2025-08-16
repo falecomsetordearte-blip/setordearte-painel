@@ -741,3 +741,47 @@ document.addEventListener("DOMContentLoaded", () => {
         inicializarPainel();
     }
 });
+// --- LÓGICA PARA A PÁGINA DE VERIFICAÇÃO ---
+if (window.location.pathname.includes('/verificacao.html')) {
+    const feedbackText = document.getElementById('feedback-text');
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    // Função auto-executável para iniciar a verificação
+    (async () => {
+        if (!token) {
+            feedbackText.textContent = 'Link de verificação inválido ou incompleto.';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/verifyEmail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: token })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message);
+            }
+
+            // Se deu tudo certo, redireciona para o login com a mensagem de sucesso
+            window.location.href = 'login.html?verified=true';
+
+        } catch (error) {
+            feedbackText.textContent = `Erro: ${error.message}`;
+        }
+    })();
+}
+
+// --- LÓGICA PARA A PÁGINA DE LOGIN (MOSTRAR MENSAGEM DE SUCESSO) ---
+if (window.location.pathname.includes('/login.html')) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isVerified = urlParams.get('verified');
+
+    if (isVerified === 'true') {
+        showFeedback('form-error-feedback', 'E-mail verificado com sucesso! Você já pode fazer o login.', false); // false = estilo de sucesso (verde)
+    }
+}
