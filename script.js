@@ -72,7 +72,7 @@ function exibirAlertaSessaoSubstituida() {
     });
 }
 
-const LOGIN_WEBHOOK_URL = 'https://hook.us2.make.com/dqxm5s3btz5th4qhrm7mr7tf2esg7776';
+
 const ESQUECI_SENHA_WEBHOOK_URL = 'https://hook.us2.make.com/0hkjdys97cuy5higrj7d2v79r8bokosr';
 const REDEFINIR_SENHA_WEBHOOK_URL = 'https://hook.us2.make.com/qn76utbyrx6niz7dv67exap2ukikouv3';
 const CRIAR_PEDIDO_WEBHOOK_URL = 'https://hook.us2.make.com/548en3dbsynv4c2e446jvcwrizl7trut';
@@ -160,20 +160,28 @@ if (loginForm) {
         const submitButton = loginForm.querySelector('button[type="submit"]');
         submitButton.disabled = true;
         submitButton.textContent = 'Entrando...';
+
         try {
-            const response = await fetch(LOGIN_WEBHOOK_URL, {
+            // Chamando o novo backend da Vercel
+            const response = await fetch('/api/loginUser', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: document.getElementById('email').value, senha: document.getElementById('senha').value })
+                body: JSON.stringify({
+                    email: document.getElementById('email').value,
+                    senha: document.getElementById('senha').value
+                })
             });
+
             const data = await response.json();
             if (!response.ok) {
-                const errorMessage = data.message || 'Ocorreu um erro desconhecido.';
-                throw new Error(errorMessage);
+                throw new Error(data.message || 'Ocorreu um erro desconhecido.');
             }
+
+            // Salva o token e o nome do usuário no localStorage
             localStorage.setItem('sessionToken', data.token);
             localStorage.setItem('userName', data.userName);
             window.location.href = 'painel.html';
+
         } catch (error) {
             showFeedback('form-error-feedback', error.message, true);
             submitButton.disabled = false;
@@ -445,3 +453,4 @@ document.addEventListener("DOMContentLoaded", () => {
         inicializarPainel();
     }
 });
+
