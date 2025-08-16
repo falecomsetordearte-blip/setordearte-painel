@@ -1,5 +1,5 @@
 const axios = require('axios');
-const bcrypt = require('bcryptjs');
+const bcrypt =require('bcryptjs');
 const { randomBytes } = require('crypto');
 
 const BITRIX24_API_URL = process.env.BITRIX24_API_URL;
@@ -16,15 +16,14 @@ module.exports = async (req, res) => {
             return res.status(400).json({ message: 'E-mail e senha são obrigatórios.' });
         }
 
-        // --- INÍCIO DA CORREÇÃO ---
-        // ETAPA 1: Buscar o usuário pelo E-MAIL DE ACESSO no campo personalizado
+        // ETAPA 1: Buscar o usuário pelo CAMPO DE E-MAIL PADRÃO, tipo WORK
         const searchUserResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.list.json`, {
             filter: { 
-                'UF_CRM_174535288724': email // Busca pelo seu campo "E-mail de Acesso"
+                'EMAIL': email,
+                'EMAIL_VALUE_TYPE': 'WORK'
             },
-            select: ['ID', 'NAME', 'UF_CRM_1751824202', 'UF_CRM_1751824225'] // Pega ID, Nome, Hash da Senha e o campo de Tokens
+            select: ['ID', 'NAME', 'UF_CRM_1751824202', 'UF_CRM_1751824225']
         });
-        // --- FIM DA CORREÇÃO ---
 
         const user = searchUserResponse.data.result[0];
 
@@ -32,7 +31,7 @@ module.exports = async (req, res) => {
             return res.status(401).json({ message: 'E-mail ou senha inválidos.' });
         }
 
-        const storedHash = user.UF_CRM_1751824202; // Campo do Hash da Senha
+        const storedHash = user.UF_CRM_1751824202;
         if (!storedHash) {
             return res.status(401).json({ message: 'Conta não configurada para login. Por favor, contate o suporte.' });
         }
