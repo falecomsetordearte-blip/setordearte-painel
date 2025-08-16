@@ -108,7 +108,7 @@ module.exports = async (req, res) => {
             },
         });
 
-        const verificationLink = `https://app.setordearte.com.br/verificacao?token=${sessionToken}&action=ativar_conta`;
+        const verificationLink = `https://setordearte-painel-git-desenvolvimento-diors-projects-0dc3c14d.vercel.app?token=${sessionToken}&action=ativar_conta`;
 
         await transporter.sendMail({
             from: `"Setor de Arte" <${EMAIL_USER}>`,
