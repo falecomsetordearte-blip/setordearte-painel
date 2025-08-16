@@ -394,125 +394,53 @@ function inicializarPainel() {
         window.location.href = "login.html";
         return;
     }
-
-    const userGreeting = document.getElementById("user-greeting");
-    const logoutButton = document.getElementById("logout-button");
-    const searchInput = document.getElementById("search-input");
-    const statusFilter = document.getElementById("status-filter");
-    const pedidosListBody = document.getElementById("pedidos-list-body");
-
+    document.getElementById("user-greeting").textContent = `Olá, ${userName}!`;
+        // --- LÓGICA PARA O MODAL DE NOVO PEDIDO ---
     const modalNovoPedido = document.getElementById("modal-novo-pedido");
     const btnOpenModalNovoPedido = document.querySelector(".btn-novo-pedido");
     const btnCloseModalNovoPedido = modalNovoPedido.querySelector(".close-modal");
     const formNovoPedido = document.getElementById("novo-pedido-form");
-    
-    const btnAssistirExplicacao = document.getElementById('btn-assistir-explicacao');
-    const videoContainer = document.getElementById('video-explicacao-container');
-    const inputWhatsapp = document.getElementById('cliente-final-wpp');
-    const inputFileAnexos = document.getElementById('pedido-anexos');
-    const fileListContainer = document.getElementById('selected-files-list');
 
-    const modalCreditos = document.getElementById("modal-adquirir-creditos");
-    const btnOpenModalCreditos = document.querySelector(".btn-add-credito");
-    const btnCloseModalCreditos = modalCreditos.querySelector(".close-modal");
-    const formCreditos = document.getElementById("adquirir-creditos-form");
-
-    userGreeting.textContent = `Olá, ${userName}!`;
-    logoutButton.addEventListener("click", () => {
-        localStorage.clear();
-        window.location.href = "login.html";
-    });
-
-    if (searchInput) {
-        searchInput.addEventListener("input", aplicarFiltros);
-    }
-    if (statusFilter) {
-        statusFilter.addEventListener("change", aplicarFiltros);
-    }
-
+    // Listener para ABRIR o modal
     btnOpenModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.add("active"));
+    
+    // Listener para FECHAR o modal (apenas no botão 'X')
     btnCloseModalNovoPedido.addEventListener("click", () => modalNovoPedido.classList.remove("active"));
-    
-    btnAssistirExplicacao.addEventListener('click', () => {
-        videoContainer.classList.toggle('hidden');
-    });
 
-    const whatsappMask = IMask(inputWhatsapp, {
-        mask: '(00) 00000-0000'
-    });
-
-    let uploadedFiles = [];
-    inputFileAnexos.addEventListener('change', () => {
-        const MAX_TOTAL_SIZE = 30 * 1024 * 1024;
-        let currentTotalSize = uploadedFiles.reduce((acc, file) => acc + file.size, 0);
-
-        for (const file of inputFileAnexos.files) {
-            if (currentTotalSize + file.size > MAX_TOTAL_SIZE) {
-                alert(`Erro: O tamanho total dos arquivos não pode exceder 30MB. O arquivo "${file.name}" não foi adicionado.`);
-                continue;
-            }
-            uploadedFiles.push(file);
-            currentTotalSize += file.size;
-        }
-        renderFileList();
-    });
-    
-    function renderFileList() {
-        fileListContainer.innerHTML = '';
-        uploadedFiles.forEach((file, index) => {
-            const fileItem = document.createElement('div');
-            fileItem.className = 'selected-file-item';
-            fileItem.innerHTML = `
-                <span class="file-name">${file.name}</span>
-                <span class="file-size">${(file.size / 1024 / 1024).toFixed(2)} MB</span>
-                <button type="button" class="remove-file" data-index="${index}">&times;</button>
-            `;
-            fileListContainer.appendChild(fileItem);
-        });
-    }
-
-    fileListContainer.addEventListener('click', (event) => {
-        if (event.target.classList.contains('remove-file')) {
-            const indexToRemove = parseInt(event.target.dataset.index, 10);
-            uploadedFiles.splice(indexToRemove, 1);
-            renderFileList();
-        }
-    });
-
+    // Listener para o ENVIO do formulário
     formNovoPedido.addEventListener('submit', async (event) => {
         event.preventDefault();
         const submitButton = formNovoPedido.querySelector("button[type='submit']");
-        const formData = new FormData();
-
-        formData.append('token', sessionToken);
-        formData.append('titulo', document.getElementById("pedido-titulo").value);
-        formData.append('cliente_nome', document.getElementById("cliente-final-nome").value);
-        formData.append('cliente_wpp', document.getElementById("cliente-final-wpp").value);
-        formData.append('briefing', document.getElementById("pedido-briefing").value);
-        formData.append('valor', document.getElementById("pedido-valor").value);
-        formData.append('formato', document.getElementById("pedido-formato").value);
-        formData.append('arquivos_link', document.getElementById("pedido-arquivos-link").value);
-
-        uploadedFiles.forEach(file => {
-            formData.append('anexos', file);
-        });
-        
         submitButton.disabled = true;
         submitButton.textContent = "Criando...";
         hideFeedback("pedido-form-error");
 
+        const pedidoData = {
+            token: sessionToken,
+            titulo: document.getElementById("pedido-titulo").value,
+            cliente_nome: document.getElementById("cliente-final-nome").value,
+            cliente_wpp: document.getElementById("cliente-final-wpp").value,
+            briefing: document.getElementById("pedido-briefing").value,
+            valor: document.getElementById("pedido-valor").value,
+            formato: document.getElementById("pedido-formato").value,
+            // O campo de link de arquivos não está no seu HTML, mas se estivesse, seria adicionado aqui.
+        };
+
         try {
-            // A chamada aqui será para a nova API '/api/createOrder'
-            // const response = await fetch('/api/createOrder', { method: "POST", body: formData });
-            // const data = await response.json();
-            // if (!response.ok) { throw new Error(data.message || "Erro ao criar pedido."); }
-            
-            alert("Lógica de envio com FormData a ser implementada.");
-            // modalNovoPedido.classList.remove("active");
-            // formNovoPedido.reset();
-            // uploadedFiles = [];
-            // renderFileList();
-            // await atualizarDadosPainel();
+            // AINDA USA O WEBHOOK ANTIGO DO MAKE.COM
+            const response = await fetch(CRIAR_PEDIDO_WEBHOOK_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(pedidoData)
+            });
+            const data = await response.json();
+            if (!response.ok) { throw new Error(data.message || "Erro ao criar pedido."); }
+
+            alert("Pedido criado! Ele aparecerá na sua lista como 'Aguardando Pagamento'.");
+            modalNovoPedido.classList.remove("active");
+            formNovoPedido.reset();
+            await atualizarDadosPainel(); // Recarrega os dados do painel
+
         } catch (error) {
             showFeedback("pedido-form-error", error.message, true);
         } finally {
@@ -520,37 +448,21 @@ function inicializarPainel() {
             submitButton.textContent = "Criar Pedido";
         }
     });
-
-    btnOpenModalCreditos.addEventListener("click", () => modalCreditos.classList.add("active"));
-    btnCloseModalCreditos.addEventListener("click", () => modalCreditos.classList.remove("active"));
-    
-    formCreditos.addEventListener('submit', async (event) => {
-        event.preventDefault();
-        // Lógica para adicionar créditos
+    document.getElementById("logout-button").addEventListener("click", () => {
+        localStorage.clear();
+        window.location.href = "login.html";
     });
-
-    pedidosListBody.addEventListener("click", async (event) => {
-        const target = event.target;
-        const dropdown = target.closest(".dropdown-pagamento");
-
-        if (target.classList.contains("btn-pagar")) {
-            event.stopPropagation();
-            document.querySelectorAll(".dropdown-pagamento.active").forEach(d => {
-                if (d !== dropdown) d.classList.remove("active");
-            });
-            dropdown.classList.toggle("active");
-            return;
-        }
-        // Outras lógicas de clique...
-    });
-
-    window.addEventListener("click", (e) => {
-        if (!e.target.matches(".btn-pagar")) {
-            document.querySelectorAll(".dropdown-pagamento.active").forEach(d => d.classList.remove("active"));
-        }
-    });
-
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) {
+        searchInput.addEventListener("input", aplicarFiltros);
+    }
     atualizarDadosPainel();
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+    if (document.querySelector(".main-painel")) {
+        inicializarPainel();
+    }
+});
 
 
