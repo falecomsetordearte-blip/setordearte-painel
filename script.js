@@ -779,11 +779,19 @@ if (window.location.pathname.includes('/verificacao.html')) {
 
 // --- LÓGICA PARA A PÁGINA DE LOGIN (MOSTRAR MENSAGEM DE SUCESSO) ---
 if (window.location.pathname.includes('/login.html')) {
-    const urlParams = new URLSearchParams(window.location.search);
-    const isVerified = urlParams.get('verified');
+    document.addEventListener('DOMContentLoaded', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const isVerified = urlParams.get('verified');
+        const resetSuccess = urlParams.get('reset');
 
-    if (isVerified === 'true') {
-        showFeedback('form-error-feedback', 'E-mail verificado com sucesso! Você já pode fazer o login.', false); // false = estilo de sucesso (verde)
-    }
+        if (isVerified === 'true') {
+            showFeedback('form-error-feedback', 'E-mail verificado com sucesso! Você já pode fazer o login.', false); // false = estilo de sucesso
+        }
+        
+        if (resetSuccess === 'success') {
+             showFeedback('form-error-feedback', 'Senha redefinida com sucesso! Você já pode fazer o login com a nova senha.', false);
+        }
+    });
 }
+
 
