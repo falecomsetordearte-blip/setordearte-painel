@@ -755,6 +755,7 @@ if (window.location.pathname.includes('/verificacao.html')) {
         }
 
         try {
+            // CORREÇÃO: Apontando para o novo backend da Vercel
             const response = await fetch('/api/verifyEmail', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -771,7 +772,7 @@ if (window.location.pathname.includes('/verificacao.html')) {
             window.location.href = 'login.html?verified=true';
 
         } catch (error) {
-            feedbackText.textContent = `Erro: ${error.message}`;
+            feedbackText.textContent = `Erro: ${error.message || 'Não foi possível verificar seu e-mail.'}`;
         }
     })();
 }
@@ -785,3 +786,4 @@ if (window.location.pathname.includes('/login.html')) {
         showFeedback('form-error-feedback', 'E-mail verificado com sucesso! Você já pode fazer o login.', false); // false = estilo de sucesso (verde)
     }
 }
+
