@@ -197,7 +197,7 @@ if (esqueciSenhaForm) {
             });
             const data = await response.json();
             if (!response.ok) { throw new Error(data.message); }
-            formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo.svg" alt="Logo Setor de Arte"><h1>Link Enviado!</h1><p>${data.message || 'Se um e-mail correspondente for encontrado, um link de recuperação será enviado.'}</p></div>`;
+            formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte"><h1>Link Enviado!</h1><p>${data.message || 'Se um e-mail correspondente for encontrado em nosso sistema, um link para redefinição de senha será enviado.'}</p></div>`;
         } catch (error) {
             formWrapper.innerHTML = `<div class="auth-header"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte"><h1>Ocorreu um Erro</h1><p>${error.message || 'Não foi possível processar a solicitação. Por favor, tente novamente mais tarde.'}</p></div>`;
         }
@@ -299,6 +299,7 @@ async function atualizarDadosPainel() {
         window.location.href = "login.html";
         return;
     }
+    pedidosListBody.innerHTML = `<div class="loading-pedidos"><div class="spinner"></div><span>Carregando seus pedidos...</span></div>`;
     try {
         const response = await fetch('/api/getPanelData', {
             method: "POST",
@@ -329,25 +330,21 @@ async function atualizarDadosPainel() {
         paginaAtual = 1;
         aplicarFiltros();
     } catch (error) {
-        if (detectarErroSessaoSubstituida(error)) {
-            exibirAlertaSessaoSubstituida();
-            return;
-        }
+        const errorMessage = `Falha ao carregar dados do painel. Causa: ${error.message}`;
+        console.error(errorMessage);
         if (pedidosListBody) {
-             pedidosListBody.innerHTML = `<div class="loading-pedidos" style="color: var(--erro);">${error.message}</div>`;
+             pedidosListBody.innerHTML = `<div class="loading-pedidos" style="color: var(--erro);">${errorMessage}</div>`;
         }
     }
 }
 
-function renderizarPedidos(pedidos) {
+function renderizarPedidos() {
     const pedidosListBody = document.getElementById("pedidos-list-body");
-    const paginationContainer = document.getElementById("pagination-container");
     pedidosListBody.innerHTML = "";
-    pedidosFiltrados = pedidos;
-    if (pedidos && pedidos.length > 0) {
+    if (pedidosFiltrados && pedidosFiltrados.length > 0) {
         const indiceInicio = (paginaAtual - 1) * itensPorPagina;
         const indiceFim = indiceInicio + itensPorPagina;
-        const pedidosPagina = pedidos.slice(indiceInicio, indiceFim);
+        const pedidosPagina = pedidosFiltrados.slice(indiceInicio, indiceFim);
         let pedidosHtml = "";
         pedidosPagina.forEach(pedido => {
             let statusInfo = { texto: "Desconhecido", classe: "" };
@@ -359,7 +356,7 @@ function renderizarPedidos(pedidos) {
             const stageId = pedido.STAGE_ID || "";
             if (stageId.includes("NEW")) {
                 statusInfo = { texto: "Aguardando Pagamento", classe: "status-pagamento" };
-                acaoHtml = `<div class="dropdown-pagamento"><button class="btn-pagar" data-deal-id="${pedido.ID}">Pagar Agora</button><div class="dropdown-content"><button class="btn-pagar-saldo" data-deal-id="${pedido.ID}" data-valor="${(parseFloat(pedido.OPPORTUNITY) || 0).toFixed(2)}">Usar Saldo</button><button class="btn-gerar-cobranca" data-deal-id="${pedido.ID}">PIX</button></div></div>`;
+                acaoHtml = `<div class="dropdown-pagamento"><button class="btn-pagar" data-deal-id="${pedido.ID}">Pagar Agora</button><div class="dropdown-content"><button class="btn-pagar-saldo" data-deal-id="${pedido.ID}">Usar Saldo</button><button class="btn-gerar-cobranca" data-deal-id="${pedido.ID}">PIX</button></div></div>`;
             } else if (stageId.includes("LOSE")) {
                 statusInfo = { texto: "Cancelado", classe: "status-cancelado" };
             } else {
@@ -369,56 +366,48 @@ function renderizarPedidos(pedidos) {
             pedidosHtml += `<div class="pedido-item"><div class="col-id"><strong>#${pedido.ID}</strong></div><div class="col-titulo">${pedido.TITLE}</div><div class="col-status"><span class="status-badge ${statusInfo.classe}">${statusInfo.texto}</span></div><div class="col-valor">${valorFormatado}</div><div class="col-acoes">${acaoHtml}</div></div>`;
         });
         pedidosListBody.innerHTML = pedidosHtml;
-        if (pedidos.length > itensPorPagina) {
-            paginationContainer.classList.remove("hidden");
-            atualizarControlesPaginacao(pedidos.length);
-        } else {
-            paginationContainer.classList.add("hidden");
-        }
     } else {
         pedidosListBody.innerHTML = `<div class="loading-pedidos" style="padding: 50px 20px;">Nenhum pedido encontrado.</div>`;
-        paginationContainer.classList.add("hidden");
     }
 }
 
 function aplicarFiltros() {
-    // Lógica de filtros a ser implementada
-}
-
-function irParaPagina(pagina) {
-    // Lógica de paginação a ser implementada
-}
-
-function atualizarControlesPaginacao(totalItens) {
-    // Lógica de paginação a ser implementada
+    const searchInput = document.getElementById("search-input");
+    const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : "";
+    if (searchTerm) {
+        pedidosFiltrados = todosPedidos.filter(pedido =>
+            (pedido.TITLE || "").toLowerCase().includes(searchTerm) ||
+            (pedido.ID || "").toString().includes(searchTerm)
+        );
+    } else {
+        pedidosFiltrados = todosPedidos;
+    }
+    paginaAtual = 1;
+    renderizarPedidos();
 }
 
 function inicializarPainel() {
-    const painelContent = document.body.querySelector(".main-painel");
-    if (!painelContent) return;
     const sessionToken = localStorage.getItem("sessionToken");
     const userName = localStorage.getItem("userName");
-    if (!sessionToken) {
+    if (!sessionToken || !userName) {
         localStorage.clear();
         window.location.href = "login.html";
         return;
     }
-    const userGreeting = document.getElementById("user-greeting");
-    userGreeting.textContent = `Olá, ${userName}!`;
-    
-    // Adicionar outros event listeners do painel aqui...
-
-    if (document.body.contains(document.getElementById("pedidos-list-body"))) {
-        atualizarDadosPainel();
+    document.getElementById("user-greeting").textContent = `Olá, ${userName}!`;
+    document.getElementById("logout-button").addEventListener("click", () => {
+        localStorage.clear();
+        window.location.href = "login.html";
+    });
+    const searchInput = document.getElementById("search-input");
+    if (searchInput) {
+        searchInput.addEventListener("input", aplicarFiltros);
     }
+    atualizarDadosPainel();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-    if (document.body.contains(document.getElementById("cadastro-form"))) {
-        // Lógica específica de cadastro já está no listener
-    } else if (document.body.contains(document.getElementById("login-form"))) {
-        // Lógica específica de login já está no listener
-    } else if (document.body.contains(document.getElementById("pedidos-list-body"))) {
+    if (document.querySelector(".main-painel")) {
         inicializarPainel();
     }
 });
