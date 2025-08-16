@@ -45,21 +45,25 @@ module.exports = async (req, res) => {
         if (!companyId) throw new Error('Falha ao criar empresa no CRM.');
         
         // ETAPA 4: CRIAR CONTATO
-        const createContactResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.add.json`, {
-            fields: {
-                NAME: firstName, // Envia o primeiro nome para o campo NAME
-                LAST_NAME: lastName, // Envia o resto para o campo LAST_NAME
-                EMAIL: [{ VALUE: email, VALUE_TYPE: 'WORK' }],
-                COMPANY_ID: companyId,
-                'UF_CRM_1751824202': hashedPassword,
-                'UF_CRM_1751824225': sessionToken,
-                'UF_CRM_1751829758': 'Não',
-                'UF_CRM_1755112398691': 'Yes',
-                'UF_CRM_1755120026423': trialEndDate,
-                'UF_CRM_1755120362390': 'YES',
-                'UF_CRM_174535288724': email // E-mail de acesso
-            }
-        });
+        const nameParts = nomeResponsavel.split(' ');
+const firstName = nameParts.shift(); // Pega o primeiro nome
+const lastName = nameParts.join(' '); // Pega todo o resto como sobrenome
+const createContactResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.add.json`, {
+    fields: {
+        NAME: firstName,
+        LAST_NAME: lastName,
+        EMAIL: [{ VALUE: email, VALUE_TYPE: 'WORK' }],
+        COMPANY_ID: companyId,
+        'UF_CRM_1751824202': hashedPassword,
+        'UF_CRM_1751824225': sessionToken,
+        'UF_CRM_1751829758': 'Não',
+        'UF_CRM_1755112398691': 'Yes',
+        'UF_CRM_1755120026423': trialEndDate,
+        'UF_CRM_1755120362390': 'YES',
+        'UF_CRM_174535288724': email,
+        'UF_CRM_1748911653': asaasCustomerId // <-- Movido da Etapa 5.1
+    }
+});
         contactId = createContactResponse.data.result;
         if (!contactId) throw new Error('Falha ao criar contato no CRM.');
         
