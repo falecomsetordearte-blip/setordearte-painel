@@ -110,4 +110,4 @@ await transporter.sendMail({
         
         return res.status(500).json({ message: 'Ocorreu um erro ao processar seu cadastro. Por favor, tente novamente.' });
     }
-};```
+};
