@@ -208,7 +208,6 @@ if (cadastroForm) {
         const loadingFeedback = document.getElementById('loading-feedback');
         const submitButton = cadastroForm.querySelector('button[type="submit"]');
 
-        // Validações
         const senha = document.getElementById('senha').value;
         const confirmarSenha = document.getElementById('confirmar-senha').value;
         const aceiteTermos = document.getElementById('termos-aceite').checked;
@@ -228,54 +227,40 @@ if (cadastroForm) {
         submitButton.disabled = true;
         formWrapper.classList.add('hidden');
         loadingFeedback.classList.remove('hidden');
-        loadingFeedback.querySelector('p').textContent = 'Criando seu perfil e preparando o checkout seguro...';
 
-        // Coleta todos os dados do formulário
+        // Bloco de coleta de dados CORRIGIDO E SIMPLIFICADO
         const empresaData = {
             nomeEmpresa: document.getElementById('nome_empresa').value,
             cnpj: document.getElementById('cnpj').value,
             telefoneEmpresa: document.getElementById('telefone_empresa').value,
-            cep: document.getElementById('cep').value,
-            logradouro: document.getElementById('logradouro').value,
-            numero: document.getElementById('numero').value,
-            bairro: document.getElementById('bairro').value,
-            cidade: document.getElementById('cidade').value,
-            estado: document.getElementById('estado').value,
-            responsavelNome: document.getElementById('nome_responsavel').value,
+            nomeResponsavel: document.getElementById('nome_responsavel').value,
             email: document.getElementById('email').value,
             senha: senha
         };
 
         try {
-            // Chama o webhook que agora retorna a `checkoutUrl`
             const response = await fetch('/api/registerUser', {
-    method: 'POST',
-    headers: { 
-        'Content-Type': 'application/json' // Apenas este header é necessário
-    },
-    body: JSON.stringify(empresaData)
-});
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(empresaData)
+            });
 
             const data = await response.json();
 
-            // Verifica se a resposta está OK e contém a URL de checkout
-            if (!response.ok || !data.checkoutUrl) {
-                // Se o backend retornou uma mensagem de erro específica, use-a.
-                const errorMessage = data.message || 'Não foi possível gerar o link de pagamento. Tente novamente.';
-                throw new Error(errorMessage);
+            if (!response.ok) {
+                throw new Error(data.message || 'Ocorreu um erro desconhecido.');
             }
 
-            // Redireciona o usuário para a página de checkout segura do Asaas
             window.location.href = data.checkoutUrl;
 
         } catch (error) {
-            // Em caso de erro, exibe o formulário novamente com a mensagem de erro
             loadingFeedback.classList.add('hidden');
             formWrapper.classList.remove('hidden');
             showFeedback('form-error-feedback', error.message, true);
             submitButton.disabled = false;
         }
     });
+}
 
     const cepInput = document.getElementById('cep');
     if (cepInput) {
@@ -1053,6 +1038,7 @@ function inicializarPainel() {
 
 // Chamar a função de inicialização quando o DOM estiver completamente carregado
 document.addEventListener("DOMContentLoaded", inicializarPainel);
+
 
 
 
