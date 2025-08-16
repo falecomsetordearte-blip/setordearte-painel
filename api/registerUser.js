@@ -47,7 +47,8 @@ module.exports = async (req, res) => {
         // ETAPA 4: CRIAR CONTATO
         const createContactResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.add.json`, {
             fields: {
-                NAME: nomeResponsavel,
+                NAME: firstName, // Envia o primeiro nome para o campo NAME
+                LAST_NAME: lastName, // Envia o resto para o campo LAST_NAME
                 EMAIL: [{ VALUE: email, VALUE_TYPE: 'WORK' }],
                 COMPANY_ID: companyId,
                 'UF_CRM_1751824202': hashedPassword,
@@ -56,7 +57,7 @@ module.exports = async (req, res) => {
                 'UF_CRM_1755112398691': 'Yes',
                 'UF_CRM_1755120026423': trialEndDate,
                 'UF_CRM_1755120362390': 'YES',
-                'UF_CRM_174535288724': email
+                'UF_CRM_174535288724': email // E-mail de acesso
             }
         });
         contactId = createContactResponse.data.result;
@@ -111,16 +112,14 @@ module.exports = async (req, res) => {
             `
         });
         
-        // ETAPA FINAL: SUCESSO
+         // ETAPA FINAL: SUCESSO
         return res.status(200).json({ checkoutUrl: checkoutUrl });
 
     } catch (error) {
         console.error('Erro no processo de cadastro:', error.response ? error.response.data : error.message);
         
-        // Tenta um "rollback": se a empresa foi criada mas o resto falhou, apaga a empresa.
-        if (companyId) {
-            await axios.post(`${BITRIX24_API_URL}crm.company.delete.json`, { id: companyId });
-        }
+        if (contactId) { await axios.post(`${BITRIX24_API_URL}crm.contact.delete.json`, { id: contactId }); }
+        if (companyId) { await axios.post(`${BITRIX24_API_URL}crm.company.delete.json`, { id: companyId }); }
         
         return res.status(500).json({ message: 'Ocorreu um erro ao processar seu cadastro. Por favor, tente novamente.' });
     }
