@@ -62,10 +62,10 @@ module.exports = async (req, res) => {
                 COMPANY_ID: companyId,
                 'UF_CRM_1751824202': hashedPassword,
                 'UF_CRM_1751824225': sessionToken,
-                'UF_CRM_1751829758': 'Não',
-                'UF_CRM_1755112398691': 'Yes',
+                'UF_CRM_1751829758': '0',
+                'UF_CRM_1755112398691': '1',
                 'UF_CRM_1755120026423': trialEndDate,
-                'UF_CRM_1755120362390': 'YES',
+                'UF_CRM_1755120362390': '1',
                 'UF_CRM_174535288724': email
             }
         });
@@ -108,7 +108,7 @@ module.exports = async (req, res) => {
             },
         });
 
-        const verificationLink = `https://app.setordearte.com.br/verificacao?token=${sessionToken}&action=ativar_conta`;
+        const verificationLink = `https://setordearte-painel-git-desenvolvimento-diors-projects-0dc3c14d.vercel.app/verificacao.html?token=${sessionToken}&action=ativar_conta`;
 
         await transporter.sendMail({
             from: `"Setor de Arte" <${EMAIL_USER}>`,
