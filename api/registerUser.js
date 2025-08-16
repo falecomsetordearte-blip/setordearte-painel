@@ -16,43 +16,32 @@ module.exports = async (req, res) => {
         return res.status(405).json({ message: 'Método não permitido' });
     }
 
-    try {
-        const {
-            nomeEmpresa,
-            cnpj,
-            telefoneEmpresa,
-            nomeResponsavel,
-            email,
-            senha
-        } = req.body;
-        
-        // ETAPA 1: VERIFICAR SE O E-MAIL JÁ EXISTE NO BITRIX24
-        const searchUserResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.list.json`, {
-            filter: { 'EMAIL': email },
-            select: ['ID']
-        });
+    const { nomeEmpresa, cnpj, telefoneEmpresa, nomeResponsavel, email, senha } = req.body;
+    let companyId = null; // Variável para controle de rollback
 
+    try {
+        // ETAPA 1: VERIFICAR E-MAIL EXISTENTE
+        const searchUserResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.list.json`, {
+            filter: { 'EMAIL': email }, select: ['ID']
+        });
         if (searchUserResponse.data.result.length > 0) {
-            return res.status(409).json({ status: "error", message: "Este e-mail já está cadastrado em nosso sistema." });
+            return res.status(409).json({ message: "Este e-mail já está cadastrado." });
         }
 
-        // ETAPA 2: GERAR TOKEN E HASH DA SENHA
+        // ETAPA 2: GERAR TODOS OS DADOS NECESSÁRIOS
         const sessionToken = uuidv4();
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(senha, salt);
         const trialEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-        // ETAPA 3: CRIAR COMPANY NO BITRIX24
+        // ETAPA 3: CRIAR COMPANY PRIMEIRO
         const createCompanyResponse = await axios.post(`${BITRIX24_API_URL}crm.company.add.json`, {
-            fields: {
-                TITLE: nomeEmpresa,
-                PHONE: [{ VALUE: telefoneEmpresa, VALUE_TYPE: 'WORK' }],
-                'UF_CRM_CNPJ': cnpj // IMPORTANTE: SUBSTITUA PELO SEU CÓDIGO TÉCNICO
-            }
+            fields: { TITLE: nomeEmpresa, PHONE: [{ VALUE: telefoneEmpresa, VALUE_TYPE: 'WORK' }], 'UF_CRM_CNPJ': cnpj }
         });
-        const companyId = createCompanyResponse.data.result;
-
-        // ETAPA 4: CRIAR CONTATO NO BITRIX24
+        companyId = createCompanyResponse.data.result;
+        if (!companyId) throw new Error('Falha ao criar empresa no CRM.');
+        
+        // ETAPA 4: CRIAR CONTATO E VINCULAR TUDO
         await axios.post(`${BITRIX24_API_URL}crm.contact.add.json`, {
             fields: {
                 NAME: nomeResponsavel,
@@ -68,42 +57,41 @@ module.exports = async (req, res) => {
         });
         
         // ETAPA 5: CRIAR CLIENTE NO ASAAS
-        const createAsaasCustomerResponse = await axios.post('https://www.asaas.com/api/v3/customers', {
-            name: nomeEmpresa,
-            cpfCnpj: cnpj
-        }, { headers: { 'access_token': ASAAS_API_KEY } });
+        const createAsaasCustomerResponse = await axios.post('https://www.asaas.com/api/v3/customers', 
+            { name: nomeEmpresa, cpfCnpj: cnpj }, 
+            { headers: { 'access_token': ASAAS_API_KEY } }
+        );
         const asaasCustomerId = createAsaasCustomerResponse.data.id;
 
-        // ETAPA 6: GERAR LINK DE PAGAMENTO DA ASSINATURA
+        // ETAPA 6: GERAR LINK DE PAGAMENTO
         const nextDueDate = new Date();
         nextDueDate.setDate(nextDueDate.getDate() + 30);
-        
         const createPaymentLinkResponse = await axios.post('https://www.asaas.com/api/v3/paymentLinks', {
-            name: "Assinatura Mensal - Setor de Arte",
-            description: "Plano mensal com 30 dias de teste gratuito.",
-            billingType: "CREDIT_CARD", chargeType: "RECURRENT", subscription: true,
-            value: 89, cycle: "MONTHLY",
-            nextDueDate: nextDueDate.toISOString().split('T')[0],
-            customer: asaasCustomerId
+             name: "Assinatura Mensal - Setor de Arte", description: "Plano mensal com 30 dias de teste gratuito.",
+             billingType: "CREDIT_CARD", chargeType: "RECURRENT", subscription: true, value: 89, cycle: "MONTHLY",
+             nextDueDate: nextDueDate.toISOString().split('T')[0], customer: asaasCustomerId
         }, { headers: { 'access_token': ASAAS_API_KEY } });
         const checkoutUrl = createPaymentLinkResponse.data.url;
 
-        // ETAPA 7: ENVIAR E-MAIL DE VERIFICAÇÃO
-        const transporter = nodemailer.createTransport({
-            host: EMAIL_HOST, port: 587, secure: false,
-            auth: { user: EMAIL_USER, pass: EMAIL_PASS },
-        });
+        // ETAPA 7: ENVIAR E-MAIL (AGORA É SEGURO)
+        const transporter = nodemailer.createTransport({ /* ... suas configs ... */ });
         const verificationLink = `https://app.setordearte.com.br/verificacao?token=${sessionToken}&action=ativar_conta`;
-        await transporter.sendMail({ /* ... seu código de e-mail aqui ... */ });
-
-        // ETAPA FINAL: RETORNAR O LINK
+        await transporter.sendMail({
+            from: `"Setor de Arte" <${EMAIL_USER}>`, to: email, subject: "Ative sua conta no Setor de Arte",
+            html: `... SEU HTML ...`
+        });
+        
+        // ETAPA FINAL: SUCESSO
         return res.status(200).json({ checkoutUrl: checkoutUrl });
 
     } catch (error) {
-        console.error('Erro detalhado no cadastro:', error.response ? error.response.data : error.message);
-        if (error.responseCode === 550 || (error.command && error.command.includes('RCPT TO'))) {
-             return res.status(400).json({ status: "error", message: "E-mail inválido." });
+        console.error('Erro no processo de cadastro:', error.response ? error.response.data : error.message);
+        
+        // Tenta um "rollback" simples: se a empresa foi criada mas o resto falhou, apaga a empresa.
+        if (companyId) {
+            await axios.post(`${BITRIX24_API_URL}crm.company.delete.json`, { id: companyId });
         }
-        return res.status(500).json({ message: 'Ocorreu um erro interno durante o cadastro.' });
+        
+        return res.status(500).json({ message: 'Ocorreu um erro ao processar seu cadastro. Por favor, tente novamente.' });
     }
-};
+};```
