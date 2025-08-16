@@ -249,10 +249,12 @@ if (cadastroForm) {
         try {
             // Chama o webhook que agora retorna a `checkoutUrl`
             const response = await fetch('/api/registerUser', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-make-apikey': FRONTEND_API_KEY },
-                body: JSON.stringify(empresaData)
-            });
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json' // Apenas este header é necessário
+    },
+    body: JSON.stringify(empresaData)
+});
 
             const data = await response.json();
 
@@ -1051,5 +1053,6 @@ function inicializarPainel() {
 
 // Chamar a função de inicialização quando o DOM estiver completamente carregado
 document.addEventListener("DOMContentLoaded", inicializarPainel);
+
 
 
