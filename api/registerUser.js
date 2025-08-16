@@ -16,7 +16,6 @@ module.exports = async (req, res) => {
 
     const { nomeEmpresa, cnpj, telefoneEmpresa, nomeResponsavel, email, senha } = req.body;
 
-    // BLOCO DE VALIDAÇÃO (agora separado e correto)
     if (!nomeEmpresa || !cnpj || !telefoneEmpresa || !nomeResponsavel || !email || !senha) {
         return res.status(400).json({ message: 'Todos os campos são obrigatórios.' });
     }
@@ -41,12 +40,16 @@ module.exports = async (req, res) => {
 
         // ETAPA 3: CRIAR COMPANY
         const createCompanyResponse = await axios.post(`${BITRIX24_API_URL}crm.company.add.json`, {
-            fields: { TITLE: nomeEmpresa, PHONE: [{ VALUE: telefoneEmpresa, VALUE_TYPE: 'WORK' }], 'UF_CRM_CNPJ': cnpj }
+            fields: {
+                TITLE: nomeEmpresa,
+                PHONE: [{ VALUE: telefoneEmpresa, VALUE_TYPE: 'WORK' }],
+                'UF_CRM_CNPJ': cnpj 
+            }
         });
         companyId = createCompanyResponse.data.result;
         if (!companyId) throw new Error('Falha ao criar empresa no CRM.');
         
-        // ETAPA 4: CRIAR CONTATO
+        // ETAPA 4: PREPARAR DADOS DO CONTATO E CRIAR
         const nameParts = nomeResponsavel.split(' ');
         const firstName = nameParts.shift();
         const lastName = nameParts.join(' ');
@@ -79,7 +82,9 @@ module.exports = async (req, res) => {
         // ETAPA 5.1: ATUALIZAR CONTATO NO BITRIX COM O ID DO ASAAS
         await axios.post(`${BITRIX24_API_URL}crm.contact.update.json`, {
             id: contactId,
-            fields: { 'UF_CRM_1748911653': asaasCustomerId }
+            fields: {
+                'UF_CRM_1748911653': asaasCustomerId
+            }
         });
 
         // ETAPA 6: GERAR LINK DE PAGAMENTO
@@ -94,16 +99,26 @@ module.exports = async (req, res) => {
 
         // ETAPA 7: ENVIAR E-MAIL
         const transporter = nodemailer.createTransport({
-            host: EMAIL_HOST, port: 587, secure: false,
-            auth: { user: EMAIL_USER, pass: EMAIL_PASS, },
+            host: EMAIL_HOST,
+            port: 587,
+            secure: false,
+            auth: {
+                user: EMAIL_USER,
+                pass: EMAIL_PASS,
+            },
         });
 
         const verificationLink = `https://app.setordearte.com.br/verificacao?token=${sessionToken}&action=ativar_conta`;
 
         await transporter.sendMail({
             from: `"Setor de Arte" <${EMAIL_USER}>`,
-            to: email, subject: "Ative sua conta no Setor de Arte",
-            html: `... SEU HTML DE E-MAIL AQUI ...`
+            to: email,
+            subject: "Ative sua conta no Setor de Arte",
+            html: `
+            <!DOCTYPE html>
+            <html lang="pt-br"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Ative sua Conta</title><style>body { margin: 0; padding: 0; font-family: 'Poppins', Arial, sans-serif; background-color: #f4f8fa; }.email-container { max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 8px; overflow: hidden; }.email-header { text-align: center; padding: 40px; }.email-header img { height: 90px; }.email-body { padding: 0 40px 40px 40px; text-align: left; color: #2c3e50; font-size: 16px; line-height: 1.6; }.email-body h1 { font-size: 24px; margin-top: 0; margin-bottom: 15px; }.email-body p { margin-bottom: 25px; }.button-wrapper { text-align: center; margin: 30px 0; }.cta-button { background-color: #38a9f4; color: #ffffff !important; padding: 15px 35px; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 16px; display: inline-block; }.credentials-box { background-color: #f4f8fa; padding: 20px; margin-top: 20px; border-radius: 8px; font-family: monospace; color: #2c3e50; font-size: 15px; }.email-footer { background-color: #f4f8fa; padding: 20px 40px; text-align: center; font-size: 12px; color: #8798A8; }</style></head>
+            <body><div class="email-container"><div class="email-header"><img src="https://setordearte.com.br/images/logo-redonda.svg" alt="Logo Setor de Arte"></div><div class="email-body"><h1>Falta só um passo!</h1><p>Olá! Para garantir a segurança da sua conta no Setor de Arte, precisamos que você verifique seu endereço de e-mail.</p><p>Clique no botão abaixo para ativar sua conta e acessar o painel:</p><div class="button-wrapper"><a href="${verificationLink}" class="cta-button" target="_blank">Ativar Minha Conta</a></div><p>Se você não criou esta conta, por favor, ignore este e-mail.</p><p>Atenciosamente,<br>Equipe Setor de Arte</p></div><div class="email-footer"><p>© ${new Date().getFullYear()} Setor de Arte. Todos os direitos reservados.</p></div></div></body></html>
+            `
         });
         
         // ETAPA FINAL: SUCESSO
