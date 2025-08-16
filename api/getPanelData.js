@@ -1,8 +1,6 @@
 const axios = require('axios');
 
 const BITRIX24_API_URL = process.env.BITRIX24_API_URL;
-// A chave do Asaas não é usada aqui, pois o saldo vem do Bitrix, mas podemos deixar para futuras ações.
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
@@ -15,42 +13,59 @@ module.exports = async (req, res) => {
             return res.status(400).json({ message: 'Token de sessão é obrigatório.' });
         }
 
-        // ETAPA 1: Buscar o contato que CONTÉM o token de sessão
+        // ETAPA 1: Encontrar o contato que CONTÉM o token de sessão
         const searchUserResponse = await axios.post(`${BITRIX24_API_URL}crm.contact.list.json`, {
-            filter: { '%UF_CRM_1751824225': sessionToken }, // A MUDANÇA ESTÁ AQUI
-            select: ['*', 'UF_*']
+            filter: { '%UF_CRM_1751824225': sessionToken },
+            select: ['ID', 'NAME', 'COMPANY_ID', 'UF_CRM_SALDO', 'UF_CRM_CONTA_ATIVA']
         });
 
         const user = searchUserResponse.data.result[0];
-
         if (!user) {
             return res.status(401).json({ message: 'Sessão inválida ou expirada.' });
         }
-
-        // ETAPA 2: Pegar todos os dados diretamente do usuário encontrado no Bitrix24
-        const saldo = user.UF_CRM_SALDO || 0; // Use o nome técnico REAL do seu campo de saldo
-        const statusConta = user.UF_CRM_CONTA_ATIVA; // Use o nome técnico REAL do seu campo de conta ativa
         
-        // ETAPA 3: Buscar a lista de pedidos (Deals) do cliente
+        // ETAPA 2: Buscar os Deals (Pedidos) vinculados à Company do contato
         const dealsResponse = await axios.post(`${BITRIX24_API_URL}crm.deal.list.json`, {
-            filter: { 'CONTACT_ID': user.ID },
-            order: { 'ID': 'DESC' }
+            filter: { 'COMPANY_ID': user.COMPANY_ID },
+            order: { 'ID': 'DESC' },
+            select: [
+                'ID', 'TITLE', 'STAGE_ID', 'OPPORTUNITY', 'COMMENTS',
+                'UF_CRM_1755374245504', // Data Ultima Mensagem Cliente
+                'UF_CRM_1755374266027'  // Data Ultima Mensagem Designer
+            ]
         });
-        const pedidos = dealsResponse.data.result;
 
-        // ETAPA 4: Verificar se o usuário ainda está em período de teste
-        let trialEndDate = null;
-        if (user.UF_CRM_TRIAL === '1') { // Verificando como booleano (1 para Sim)
-            trialEndDate = user.UF_CRM_TRIAL_END_DATE; // Use o nome técnico REAL do seu campo de data
-        }
+        let pedidos = dealsResponse.data.result || [];
         
-        // ETAPA FINAL: Montar e enviar a resposta
+        // ETAPA 3: Processar os pedidos para adicionar o status da notificação
+        pedidos = pedidos.map(pedido => {
+            let temNotificacao = false;
+            const msgDesigner = pedido.UF_CRM_1755374266027;
+            const msgCliente = pedido.UF_CRM_1755374245504;
+            
+            if (msgDesigner && msgCliente) {
+                if (new Date(msgDesigner) > new Date(msgCliente)) {
+                    temNotificacao = true;
+                }
+            } else if (msgDesigner) {
+                temNotificacao = true;
+            }
+            
+            return {
+                ID: pedido.ID,
+                TITLE: pedido.TITLE,
+                STAGE_ID: pedido.STAGE_ID,
+                OPPORTUNITY: pedido.OPPORTUNITY,
+                COMMENTS: pedido.COMMENTS,
+                notificacao: temNotificacao
+            };
+        });
+
+        // ETAPA FINAL: Montar e enviar a resposta completa
         return res.status(200).json({
-            saldo: saldo,
-            pedidos: pedidos,
-            statusConta: statusConta,
-            trialEndDate: trialEndDate,
-            userName: user.NAME
+            status: 'success',
+            saldo: user.UF_CRM_SALDO || 0,
+            pedidos: pedidos
         });
 
     } catch (error) {
