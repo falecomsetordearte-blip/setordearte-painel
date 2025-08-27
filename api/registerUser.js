@@ -87,26 +87,7 @@ module.exports = async (req, res) => {
             }
         });
 
-        // ETAPA 6: GERAR LINK DE PAGAMENTO
-        const nextDueDate = new Date();
-        nextDueDate.setDate(nextDueDate.getDate() + 30);
-        const createPaymentLinkResponse = await axios.post('https://www.asaas.com/api/v3/paymentLinks', {
-             name: "Assinatura Mensal - Setor de Arte", description: "Plano mensal com 30 dias de teste gratuito.",
-             billingType: "CREDIT_CARD", chargeType: "RECURRENT", subscription: true, value: 89, cycle: "MONTHLY",
-             nextDueDate: nextDueDate.toISOString().split('T')[0], customer: asaasCustomerId
-        }, { headers: { 'access_token': ASAAS_API_KEY } });
-        const checkoutUrl = createPaymentLinkResponse.data.url;
-
-        // ETAPA 7: ENVIAR E-MAIL
-        const transporter = nodemailer.createTransport({
-            host: EMAIL_HOST,
-            port: 587,
-            secure: false,
-            auth: {
-                user: EMAIL_USER,
-                pass: EMAIL_PASS,
-            },
-        });
+        
 
         const verificationLink = `https://setordearte-painel-git-desenvolvimento-diors-projects-0dc3c14d.vercel.app/verificacao.html?token=${sessionToken}&action=ativar_conta`;
 
@@ -122,7 +103,12 @@ module.exports = async (req, res) => {
         });
         
         // ETAPA FINAL: SUCESSO
-        return res.status(200).json({ checkoutUrl: checkoutUrl });
+        return res.status(200).json({
+            success: true,
+            contactId: contactId,
+            companyId: companyId,
+            asaasCustomerId: asaasCustomerId
+        });
 
     } catch (error) {
         console.error('Erro no processo de cadastro:', error.response ? error.response.data : error.message);
