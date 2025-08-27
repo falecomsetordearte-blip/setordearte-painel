@@ -2161,4 +2161,72 @@ form { text-align: left; }
     background-color: #f1f1f1;
 }
 
+/* ===================================== */
+/* === PÁGINA DE CHECKOUT/ASSINATURA === */
+/* ===================================== */
+
+.checkout-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 40px;
+    text-align: left;
+    margin-top: 20px;
+}
+
+.summary-column h3, .payment-column h3 {
+    font-size: 1.2rem;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--borda);
+}
+
+.summary-box {
+    background-color: var(--fundo-pagina);
+    padding: 25px;
+    border-radius: 12px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 1rem;
+    margin-bottom: 15px;
+}
+
+.summary-item.trial span:last-child {
+    color: var(--sucesso);
+    font-weight: 600;
+}
+
+.summary-item.total {
+    font-size: 1.1rem;
+    margin-top: 15px;
+    padding-top: 15px;
+}
+
+.summary-note {
+    font-size: 0.8rem;
+    color: var(--cinza-texto);
+    line-height: 1.5;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.form-group-flex {
+    display: flex;
+    gap: 20px;
+}
+
+.form-group-flex .form-group {
+    flex: 1;
+}
+
+@media (max-width: 768px) {
+    .checkout-layout {
+        grid-template-columns: 1fr;
+    }
+    .summary-column {
+        order: -1; /* Move o resumo para cima em telas pequenas */
+    }
+}
 
