@@ -90,7 +90,7 @@ module.exports = async (req, res) => {
                         </div>
                         <p>Se você não solicitou esta alteração, pode ignorar este e-mail com segurança. Nenhuma alteração será feita na sua conta.</p>
                         <div class="info-box">
-                            Este link de redefinição de senha é válido por <strong>1 hora</strong>.
+                            Este link de redefinição de senha é válido por <strong>48 horas</strong>.
                         </div>
                     </div>
                     <div class="email-footer">
