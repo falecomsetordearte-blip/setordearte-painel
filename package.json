@@ -4,7 +4,8 @@
   "description": "Backend services for Setor de Arte Panel",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
@@ -14,6 +15,11 @@
     "bcryptjs": "^2.4.3",
     "nodemailer": "^6.9.14",
     "uuid": "^10.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "prisma": "^5.15.1",
+    "@prisma/client": "^5.15.1"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }
